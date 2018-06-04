@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jun  4 21:35:57 2018
+
+@author: xuelun
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri May 18 01:54:51 2018
+
+@author: xuelun
+"""
+
+
+
+
+
+
+
+#exersice
+ import os,codecs, random
+os.chdir('/Users/xuelun/Documents/201804/NLP课程') ##修改路径
+ os.getcwd()
+from collections import Counter
+import jieba
+from numpy import *
+from math import sqrt
+
+ # -*- coding: cp936 -*-
+import sys
+from sklearn import feature_extraction
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer
+import sys
+reload(sys)
+sys.setdefaultencoding( "utf-8" )
+sys.path.append("C:\Users\Administrator\Desktop\9.17")
+
+
+
+
+
+
+
+#去停止词切词操作#
+def stopwordslist(filepath):
+    f_stop =open(filepath)
+    try:
+        f_stop_text = f_stop.read( )
+    finally:
+        f_stop.close( )
+    f_stop_seg_list=f_stop_text.split('\n')
+            
+    return f_stop_seg_list
+
+
+
+def seg_sentence(sentence):
+    sentence_seged=jieba.cut(sentence.strip())
+    sentence_seged_list='/'.join(sentence_seged)
+    
+    stopwords=stopwordslist('/Users/xuelun/Documents/201804/NLP课程/Data_source-master/chinese_stopwords.txt')
+    #f_stop_seg_list=stopwords.split('\n')
+
+    outstr=[]#list
+    for myword in sentence_seged_list.split('/'):#原来outstr是list类型，被split了后就折成了string
+               
+        if not(myword.strip() in stopwords) and len(myword.strip())>1:
+
+                outstr.append(myword)  
+    return outstr
+
+
+
+#计算余弦cos=(a.b)/|a||b
+def norm(vec):
+     return sqrt(sum([pow(v,2) for k, v in vec.items()]))
+
+
+def cosine(v1,v2):#-1，1，1是最相似,v1 v2都是dict类型
+    # 交集w乘积
+    norm_v1=norm(v1)
+    norm_v2=norm(v2)
+    if norm_v1==0 or norm_v2==0:
+        return 1.0
+    dividend=0
+    #sum1Sq=0
+    for k, v in v1.items():
+        if k in v2:
+            dividend+=v*v2[k]
+        #sum1Sq+=pow(v, 2)
+
+    # Sums of the squares
+    #sum2Sq=sum([pow(v,2) for k, v in v2.items()])    
+    #if sum1Sq==0 or sum2Sq==
+   # 0:
+        #return 1.0
+    #else:
+    return 1.0-dividend/(norm_v1*norm_v2)
+ 
+
+
+
+def kNNClassify1(newInput,rows,labels,n):  #dict
+     # shape[0] stands for the num of row  
+   # n=len(rows)
+    ## step 1: calculate Euclidean distance  
+    # tile(A, reps): Construct an array by repeating A reps times  
+    # the following copy numSamples rows for dataSet  
+    d={}
+    
+    for j in rows.keys():
+            row=rows[j]
+            d[j]=cosine(row,newInput)
+    
+    sortedDistIndices = sorted(d.items(),key=lambda item:item[1])#值从小到大排序
+    #降序：x=sorted(classCount.items(),key=lambda item:item[1],reverse=True)
+    classCount={}
+
+    for i in range(n):#0 1 k-1,一共k个,访问前n个距离
+        for k,v in labels.items():
+           if k==sortedDistIndices[i][0]:
+               voterLabel=v
+               classCount[voterLabel]=classCount.get(voterLabel,0)+1
+               #voterLabel=labels.loc[labels['id'] == sortedDistIndices[i][0]]['source']
+         #voterLabel=voterLabel.values[0]#为了把series转为str
+        
+    maxCount=0
+    
+    for key,value in classCount.items():
+        if value>maxCount:
+            maxCount=value
+            maxIndex=key
+   
+    return maxIndex
+
+
+
+#main
+if __name__ == '__main__':
+    
+
+data2= pd.read_csv("/Users/xuelun/Documents/201804/NLP课程/Data_source-master/sqlResult_1558435.csv",encoding = "gb18030", engine='python')
+lc2=pd.DataFrame(data2)
+data_content=lc2[['id','content','source']]
+data_content1=data_content.dropna()#去除na的
+    
+train_data=data_content1.iloc[0:500,]
+test_data=data_content1.iloc[500:1000,]
+train_data['source'].value_counts()
+
+
+
+ #存训练集数数据
+train_content_cut_dict={}
+#存训练集标签
+train_source_dict={}
+for k in train_data.values:#遍历每篇文章的内容 data_content1是dataframe
+       #data_content_cut=data_content_cut.append(dict(data_content_counter.most_common(5)),ignore_index=True)#
+       train_content_cut_dict[k[0]]=dict(Counter(seg_sentence(k[1])).most_common(10))#
+       train_source_dict[k[0]]=k[2]
+ 
+    
+test_content_cut_dict={}
+test_source_dict={}#真实分类
+for v in test_data.values:#遍历每篇文章的内容 data_content1是dataframe
+        test_content_cut_dict[v[0]]=dict(Counter(seg_sentence(v[1])).most_common(10))#
+        test_source_dict[v[0]]=v[2]
+    
+    
+  #example
+  #  each_content=test_data.loc[test_data['id']==89110]['content'].values[0]
+    
+    #data_content_counter=
+    #Counter(seg_sentence(each_content)).most_common(10)
+    
+ classLabels_predict={}#得到的分类结果放在这里
+ mathCount=0
+ for  k,v in test_content_cut_dict.items():
+     classLabels_predict[k]=kNNClassify1(v,train_content_cut_dict,train_source_dict,3)
+     if classLabels_predict[k]==test_source_dict[k]:
+          matchCount += 1
+ accuracy = float(matchCount) / numTestSamples  
+
+#如果n=len(train_content_cut_dict)，得到的结果classLabels_predict1都是“中国新闻网“
+classLabels_predict1={}
+for  k,v in test_content_cut_dict.items():
+     classLabels_predict1[k]=kNNClassify1(v,train_content_cut_dict,train_source_dict,len(train_content_cut_dict))
+  
+
+
+
+
+ 
